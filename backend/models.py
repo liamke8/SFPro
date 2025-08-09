@@ -45,7 +45,6 @@ class Site(Base):
     org_id = Column(Integer, ForeignKey("orgs.id"))
     domain = Column(String, index=True)
     robots_policy = Column(String, default="respect")
-    wp_integration_id = Column(Integer, ForeignKey("integrations_wp.id"), nullable=True)
     organization = relationship("Organization", back_populates="sites")
     crawls = relationship("Crawl", back_populates="site")
     pages = relationship("Page", back_populates="site")

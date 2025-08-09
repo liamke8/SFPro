@@ -9,6 +9,7 @@ playwright
 beautifulsoup4
 html-to-markdown
 # sentence-transformers
+readability-lxml
 ollama
 litellm
 pydantic
