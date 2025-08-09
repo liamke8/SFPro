@@ -95,3 +95,48 @@ class Page(BaseModel):
     page_elements: Optional[PageElement] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+# Schemas for Templates
+class TemplateBase(BaseModel):
+    name: str
+    system_prompt: Optional[str] = None
+    user_prompt: str
+    output_schema: Optional[dict] = None
+    model: str = "ollama/llama3"
+    vars_json: Optional[dict] = None
+
+class TemplateCreate(TemplateBase):
+    org_id: int
+
+class Template(TemplateBase):
+    id: int
+    org_id: int
+    version: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+# Schemas for Prompt Runs and Generations
+class PromptRunBase(BaseModel):
+    template_id: int
+    user_id: int
+
+class PromptRunCreate(PromptRunBase):
+    pass
+
+class RowGeneration(BaseModel):
+    id: int
+    output_json: dict
+    variant: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+class PromptRun(PromptRunBase):
+    id: int
+    status: str
+    created_at: datetime.datetime
+    row_generations: List[RowGeneration] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+class RunPromptRequest(BaseModel):
+    template_id: int

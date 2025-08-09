@@ -1,7 +1,7 @@
 from fastapi import FastAPI, APIRouter
 from contextlib import asynccontextmanager
 from .database import init_db
-from .routers import organizations, sites, auth, crawls
+from .routers import organizations, sites, auth, crawls, templates, prompts
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -19,6 +19,8 @@ api_router.include_router(auth.router)
 api_router.include_router(organizations.router)
 api_router.include_router(sites.router)
 api_router.include_router(crawls.router)
+api_router.include_router(templates.router)
+api_router.include_router(prompts.router)
 
 app.include_router(api_router)
 

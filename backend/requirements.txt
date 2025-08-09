@@ -8,7 +8,7 @@ redis
 playwright
 beautifulsoup4
 html-to-markdown
-# sentence-transformers
+sentence-transformers
 readability-lxml
 ollama
 litellm

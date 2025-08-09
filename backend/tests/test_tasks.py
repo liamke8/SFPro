@@ -9,10 +9,14 @@ def sample_html():
     with open("backend/tests/sample_page.html", "r") as f:
         return f.read()
 
+@patch("backend.tasks.generate_embeddings.delay")
 @patch("backend.tasks.sync_playwright")
 @patch("backend.crud.create_page_with_elements")
-def test_crawl_page_success(mock_create_page, mock_sync_playwright, sample_html):
+def test_crawl_page_success(mock_create_page, mock_sync_playwright, mock_generate_embeddings, sample_html):
     # --- Arrange ---
+    # Mock the CRUD function to return a mock page with an ID
+    mock_create_page.return_value = MagicMock(id=1)
+
     # Mock Playwright to avoid real network calls
     mock_page = MagicMock()
     mock_page.content.return_value = sample_html
@@ -54,3 +58,6 @@ def test_crawl_page_success(mock_create_page, mock_sync_playwright, sample_html)
     assert len(seo_data['images']) == 1
     assert seo_data['images'][0]['alt'] == "Sample Image Alt Text"
     assert seo_data['schema_ld_json'][0]['@type'] == "WebPage"
+
+    # Check that the embedding task was called
+    mock_generate_embeddings.assert_called_once_with(page_id=1)
