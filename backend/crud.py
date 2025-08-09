@@ -20,8 +20,17 @@ def create_organization(db: Session, org: schemas.OrganizationCreate):
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
+def get_user_by_supabase_id(db: Session, supabase_id: str):
+    return db.query(models.User).filter(models.User.supabase_user_id == supabase_id).first()
+
 def create_user(db: Session, user: schemas.UserCreate):
-    db_user = models.User(email=user.email, name=user.name, org_id=user.org_id, role=user.role)
+    db_user = models.User(
+        email=user.email,
+        name=user.name,
+        org_id=user.org_id,
+        role=user.role,
+        supabase_user_id=user.supabase_user_id
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)

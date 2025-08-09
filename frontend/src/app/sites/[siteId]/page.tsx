@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   createColumnHelper,
   flexRender,
@@ -9,76 +9,127 @@ import {
   getSortedRowModel,
   useReactTable,
   type SortingState,
+  type RowSelectionState,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
+import api from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
-// Define the type for our Page data
+// Define data types
 type Page = {
   id: number;
   url: string;
   status_code: number | null;
-  page_elements: {
-    title: string | null;
-    h1: string | null;
-  } | null;
+  page_elements: { title: string | null; h1: string | null; } | null;
 };
 
-// Define columns using the column helper
+type Template = {
+  id: number;
+  name: string;
+};
+
+// Define columns
 const columnHelper = createColumnHelper<Page>();
 
 export default function SitePage({ params }: { params: { siteId: string } }) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [columnVisibility, setColumnVisibility] = useState({});
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
 
-  // Fetch data using react-query
+  // Data fetching for pages
   const { data, isLoading, error } = useQuery({
     queryKey: ["sitePages", params.siteId],
     queryFn: async () => {
-      // In a real app, you'd have a proper API client.
-      const res = await fetch(`/api/sites/${params.siteId}/pages?size=1000`); // Fetch more for client-side filtering
-      if (!res.ok) {
-        throw new Error(`Failed to fetch pages: ${res.statusText}`);
-      }
-      return res.json();
+      const response = await api.get(`/sites/${params.siteId}/pages?size=1000`);
+      return response.data;
+    },
+    enabled: !!user,
+  });
+
+  // Data fetching for templates
+  const { data: templates } = useQuery<Template[]>({
+    queryKey: ["templates", user?.org_id],
+    queryFn: async () => {
+        if (!user) return [];
+        const response = await api.get(`/templates/org/${user.org_id}`);
+        return response.data;
+    },
+    enabled: !!user && isModalOpen, // Only fetch when modal is open
+  });
+
+  // Mutation for running a prompt
+  const runPromptMutation = useMutation({
+    mutationFn: ({ pageId, templateId }: { pageId: number, templateId: number }) => {
+      return api.post(`/prompts/run/page/${pageId}`, { template_id: templateId });
+    },
+    onSuccess: () => {
+      // In a real app, you might want to show a success notification
+      console.log("Prompt execution started.");
     },
   });
 
+  const handleRunPrompt = () => {
+    const templateId = parseInt(selectedTemplate, 10);
+    if (!templateId) {
+      alert("Please select a template.");
+      return;
+    }
+    const selectedPageIds = Object.keys(rowSelection).map(Number);
+    selectedPageIds.forEach(pageId => {
+      runPromptMutation.mutate({ pageId, templateId });
+    });
+    setIsModalOpen(false);
+    setRowSelection({});
+  };
+
   const columns = useMemo(() => [
-    columnHelper.accessor("url", {
-      header: "URL",
-      cell: (info) => <a href={info.getValue()} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{info.getValue()}</a>,
-    }),
-    columnHelper.accessor((row) => row.page_elements?.title, {
-      id: "title",
-      header: "Title",
-      cell: (info) => info.getValue() || "-",
-    }),
-    columnHelper.accessor((row) => row.page_elements?.h1, {
-      id: "h1",
-      header: "H1",
-      cell: (info) => info.getValue() || "-",
-    }),
-    columnHelper.accessor("status_code", {
-        header: "Status",
-        cell: (info) => info.getValue(),
-    }),
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <input
+          type="checkbox"
+          {...{
+            checked: table.getIsAllRowsSelected(),
+            indeterminate: table.getIsSomeRowsSelected(),
+            onChange: table.getToggleAllRowsSelectedHandler(),
+          }}
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          {...{
+            checked: row.getIsSelected(),
+            disabled: !row.getCanSelect(),
+            indeterminate: row.getIsSomeSelected(),
+            onChange: row.getToggleSelectedHandler(),
+          }}
+        />
+      ),
+    },
+    columnHelper.accessor("url", { header: "URL", cell: (info) => <a href={info.getValue()} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{info.getValue()}</a> }),
+    columnHelper.accessor((row) => row.page_elements?.title, { id: "title", header: "Title", cell: (info) => info.getValue() || "-" }),
+    columnHelper.accessor((row) => row.page_elements?.h1, { id: "h1", header: "H1", cell: (info) => info.getValue() || "-" }),
+    columnHelper.accessor("status_code", { header: "Status", cell: (info) => info.getValue() }),
   ], []);
 
   const table = useReactTable({
     data: data?.items ?? [],
     columns,
-    state: {
-      sorting,
-      globalFilter,
-      columnVisibility,
-    },
+    state: { sorting, globalFilter, columnVisibility, rowSelection },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    enableRowSelection: true,
   });
 
   if (isLoading) return <div className="p-4">Loading...</div>;
@@ -86,30 +137,49 @@ export default function SitePage({ params }: { params: { siteId: string } }) {
 
   return (
     <div className="p-4">
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white p-6 rounded-lg shadow-xl">
+            <h2 className="text-lg font-bold mb-4">Run a Prompt</h2>
+            <select
+              value={selectedTemplate}
+              onChange={(e) => setSelectedTemplate(e.target.value)}
+              className="w-full p-2 border rounded mb-4"
+            >
+              <option value="" disabled>Select a template...</option>
+              {templates?.map(template => (
+                <option key={template.id} value={template.id}>{template.name}</option>
+              ))}
+            </select>
+            <div className="flex justify-end space-x-2">
+              <button onClick={() => setIsModalOpen(false)} className="p-2 bg-gray-300 rounded">Cancel</button>
+              <button onClick={handleRunPrompt} className="p-2 bg-blue-500 text-white rounded">Run</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <h1 className="text-2xl font-bold mb-4">Pages for Site {params.siteId}</h1>
 
       <div className="flex justify-between mb-4">
-        <input
-          type="text"
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          placeholder="Search all columns..."
-          className="border p-2 rounded"
-        />
-        <div className="flex flex-wrap">
-            {table.getAllLeafColumns().map(column => (
-              <label key={column.id} className="inline-flex items-center mr-3">
-                <input
-                  {...{
-                    type: 'checkbox',
-                    checked: column.getIsVisible(),
-                    onChange: column.getToggleVisibilityHandler(),
-                  }}
-                />
-                <span className="ml-1">{column.id}</span>
-              </label>
-            ))}
+        <div className="flex items-center space-x-4">
+            <input
+              type="text"
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              placeholder="Search all columns..."
+              className="border p-2 rounded"
+            />
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="p-2 bg-green-500 text-white rounded disabled:bg-gray-400"
+              disabled={Object.keys(rowSelection).length === 0}
+            >
+              Run Prompt ({Object.keys(rowSelection).length})
+            </button>
         </div>
+        {/* ... Column Visibility ... */}
       </div>
 
       <div className="overflow-x-auto">
@@ -124,10 +194,7 @@ export default function SitePage({ params }: { params: { siteId: string } }) {
                     onClick={header.column.getToggleSortingHandler()}
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
-                    {{
-                      asc: ' 🔼',
-                      desc: ' 🔽',
-                    }[header.column.getIsSorted() as string] ?? null}
+                    {{ asc: ' 🔼', desc: ' 🔽' }[header.column.getIsSorted() as string] ?? null}
                   </th>
                 ))}
               </tr>
@@ -135,7 +202,7 @@ export default function SitePage({ params }: { params: { siteId: string } }) {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {table.getRowModel().rows.map(row => (
-              <tr key={row.id}>
+              <tr key={row.id} className={row.getIsSelected() ? "bg-blue-100" : ""}>
                 {row.getVisibleCells().map(cell => (
                   <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

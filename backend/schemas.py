@@ -30,6 +30,7 @@ class UserBase(BaseModel):
     name: str
 
 class UserCreate(UserBase):
+    supabase_user_id: str
     org_id: int
     role: str
 

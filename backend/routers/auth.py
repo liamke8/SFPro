@@ -34,7 +34,13 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
         db_org = crud.create_organization(db, org=schemas.OrganizationCreate(name=org_name))
 
         # Step 3: Create the user in your local database
-        db_user = crud.create_user(db=db, user=schemas.UserCreate(email=user_in.email, name=user_in.name, org_id=db_org.id, role="owner"))
+        db_user = crud.create_user(db=db, user=schemas.UserCreate(
+            email=user_in.email,
+            name=user_in.name,
+            org_id=db_org.id,
+            role="owner",
+            supabase_user_id=supabase_user.id
+        ))
 
         return {"message": "User created successfully. Please check your email to verify.", "user_id": db_user.id, "org_id": db_org.id}
 

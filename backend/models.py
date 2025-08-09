@@ -31,6 +31,7 @@ class Organization(Base):
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
+    supabase_user_id = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
     name = Column(String)
     org_id = Column(Integer, ForeignKey("orgs.id"))

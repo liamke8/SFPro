@@ -8,7 +8,7 @@ from ..database import get_db
 router = APIRouter(
     prefix="/sites",
     tags=["sites"],
-    # dependencies=[Depends(auth.get_current_user)], # TODO: Re-enable auth
+    dependencies=[Depends(auth.get_current_user)],
 )
 
 @router.get("/{site_id}", response_model=schemas.Site)
