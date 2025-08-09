@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from contextlib import asynccontextmanager
 from .database import init_db
 from .routers import organizations, sites, auth, crawls
@@ -13,10 +13,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-app.include_router(auth.router)
-app.include_router(organizations.router)
-app.include_router(sites.router)
-app.include_router(crawls.router)
+# Add a prefix to all API routes
+api_router = APIRouter(prefix="/api")
+api_router.include_router(auth.router)
+api_router.include_router(organizations.router)
+api_router.include_router(sites.router)
+api_router.include_router(crawls.router)
+
+app.include_router(api_router)
 
 @app.get("/")
 def read_root():

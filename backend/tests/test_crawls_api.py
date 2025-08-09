@@ -21,7 +21,7 @@ def test_create_crawl_api(client: TestClient, db_session, test_user):
     with patch("backend.tasks.crawl_page.delay") as mock_celery_task:
         # --- Act ---
         response = client.post(
-            "/crawls/",
+            "/api/crawls/",
             json={"site_id": site.id, "urls": ["https://testsite.com/page1", "https://testsite.com/page2"]},
         )
 

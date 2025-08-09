@@ -1,5 +1,5 @@
 import json
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from . import models, schemas
 
 # CRUD for Organizations
@@ -88,3 +88,13 @@ def create_crawl_job(db: Session, site_id: int, total_urls: int):
     db.commit()
     db.refresh(crawl)
     return crawl
+
+def get_pages_by_site(db: Session, site_id: int, skip: int = 0, limit: int = 100):
+    """
+    Gets all pages for a given site with pagination.
+    Eagerly loads page_elements.
+    """
+    query = db.query(models.Page).filter(models.Page.site_id == site_id).options(joinedload(models.Page.page_elements))
+    total = query.count()
+    items = query.offset(skip).limit(limit).all()
+    return {"items": items, "total": total}
