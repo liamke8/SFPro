@@ -1,0 +1,20 @@
+fastapi
+uvicorn[standard]
+SQLAlchemy
+psycopg2-binary
+pgvector
+celery
+redis
+playwright
+beautifulsoup4
+html-to-markdown
+# sentence-transformers
+ollama
+litellm
+pydantic
+pydantic-settings
+supabase
+python-multipart
+pytest
+httpx
+pytest-cov
