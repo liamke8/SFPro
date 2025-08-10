@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from .. import crud, models, schemas, auth
+from .. import crud, models, schemas, auth, tasks
 from ..database import get_db
 
 router = APIRouter(
@@ -40,3 +40,25 @@ def read_site_pages(
         "page": page,
         "size": size,
     }
+
+@router.post("/{site_id}/search", response_model=List[schemas.Page])
+def search_site_pages(
+    site_id: int,
+    request: schemas.SearchRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Search for pages within a site using vector similarity search.
+    """
+    # TODO: Check user permissions for the site.
+    site = crud.get_site(db, site_id=site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    # Generate embedding for the query
+    query_vector = tasks.model.encode(request.query).tolist()
+
+    # Perform the search
+    pages = crud.search_pages_by_vector(db, site_id=site_id, vector=query_vector, limit=request.limit)
+
+    return pages

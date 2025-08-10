@@ -146,6 +146,27 @@ def get_templates_by_organization(db: Session, org_id: int, skip: int = 0, limit
     """
     return db.query(models.Template).filter(models.Template.org_id == org_id).offset(skip).limit(limit).all()
 
+def search_pages_by_vector(db: Session, site_id: int, vector: list, limit: int = 5):
+    """
+    Searches for pages within a site by vector similarity.
+    """
+    # Find the page IDs that have the most similar embeddings
+    # We search across all embedding kinds (title, h1, content chunks)
+    similar_embeddings = db.query(models.Embedding.page_id).filter(
+        models.Embedding.page_id.in_(
+            db.query(models.Page.id).filter(models.Page.site_id == site_id)
+        )
+    ).order_by(models.Embedding.vector.cosine_distance(vector)).limit(limit * 2).all() # Fetch more to dedupe
+
+    # Get unique page IDs
+    unique_page_ids = list(dict.fromkeys([e.page_id for e in similar_embeddings]))[:limit]
+
+    # Fetch the full page objects for the top unique page IDs
+    if not unique_page_ids:
+        return []
+
+    return db.query(models.Page).filter(models.Page.id.in_(unique_page_ids)).options(joinedload(models.Page.page_elements)).all()
+
 # CRUD for Prompt Runs and Generations
 def create_prompt_run(db: Session, template_id: int, user_id: int):
     """

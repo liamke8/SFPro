@@ -141,3 +141,13 @@ class PromptRun(PromptRunBase):
 
 class RunPromptRequest(BaseModel):
     template_id: int
+
+# Schemas for Search
+class SearchRequest(BaseModel):
+    query: str
+    limit: Optional[int] = 5
+
+# Schemas for Chat
+class ChatRequest(BaseModel):
+    message: str
+    site_id: int
