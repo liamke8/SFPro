@@ -108,6 +108,13 @@ def get_pages_by_site(db: Session, site_id: int, skip: int = 0, limit: int = 100
     items = query.offset(skip).limit(limit).all()
     return {"items": items, "total": total}
 
+def get_all_pages_for_site(db: Session, site_id: int):
+    """
+    Gets all pages for a given site for a data export.
+    Eagerly loads page_elements.
+    """
+    return db.query(models.Page).filter(models.Page.site_id == site_id).options(joinedload(models.Page.page_elements)).all()
+
 # CRUD for Embeddings
 def create_embedding(db: Session, page_id: int, kind: str, vector: list):
     """
@@ -198,3 +205,40 @@ def create_row_generation(db: Session, run_id: int, page_id: int, input_context:
     db.commit()
     db.refresh(row_generation)
     return row_generation
+
+# CRUD for WordPress Integrations
+def create_wp_integration(db: Session, site_id: int, integration: schemas.WordpressIntegrationCreate):
+    """
+    Creates a new WordPress Integration for a site.
+    """
+    db_integration = models.WordpressIntegration(
+        **integration.model_dump(),
+        site_id=site_id
+    )
+    db.add(db_integration)
+    db.commit()
+    db.refresh(db_integration)
+    return db_integration
+
+def get_wp_integration_by_site(db: Session, site_id: int):
+    """
+    Gets the WordPress Integration for a given site.
+    """
+    return db.query(models.WordpressIntegration).filter(models.WordpressIntegration.site_id == site_id).first()
+
+# CRUD for Publishing
+def create_publish_job(db: Session, page_id: int, site_id: int):
+    """
+    Creates a new PublishJob record.
+    """
+    job = models.PublishJob(
+        site_id=site_id,
+        page_id=page_id,
+        cms="wordpress",
+        status="pending",
+        payload_json={}, # In a real app, this would contain the generated content
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    return job

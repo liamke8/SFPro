@@ -8,7 +8,7 @@ from sentence_transformers import SentenceTransformer
 from .celery_app import celery_app
 from . import crud
 from .database import SessionLocal
-from .models import Page, Template
+from .models import Page, Template, PublishJob
 
 # Load the sentence transformer model once per worker
 model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -35,56 +35,61 @@ def extract_seo_data(soup, url):
 
 
 @celery_app.task
+def publish_to_wordpress(job_id: int):
+    """
+    Placeholder task to simulate publishing content to WordPress.
+    """
+    print(f"Starting publish job {job_id}")
+    db = SessionLocal()
+    try:
+        job = db.query(PublishJob).filter(PublishJob.id == job_id).first()
+        if not job:
+            raise ValueError(f"PublishJob with id {job_id} not found.")
+
+        # In a real implementation, you would:
+        # 1. Get the WP integration details (URL, API key) for the site.
+        # 2. Get the generated content for the page.
+        # 3. Make an authenticated HTTP POST/PUT request to the WP site's REST API.
+        # 4. Handle success or failure based on the response.
+        print(f"Simulating publishing page {job.page_id} to WordPress...")
+
+        # Mark the job as completed
+        job.status = "completed"
+        db.commit()
+        print(f"Publish job {job_id} completed successfully.")
+
+    except Exception as e:
+        print(f"Publish job {job_id} failed: {e}")
+        if 'job' in locals() and job:
+            job.status = "failed"
+            job.error = str(e)
+            db.commit()
+    finally:
+        db.close()
+
+
+@celery_app.task
 def execute_prompt(page_id: int, template_id: int, run_id: int):
-    """
-    Executes a prompt template on a given page's data.
-    """
+    # ... (implementation is the same)
     print(f"Executing prompt for page {page_id}, template {template_id}")
     db = SessionLocal()
     try:
         page = db.query(Page).filter(Page.id == page_id).first()
         template = db.query(Template).filter(Template.id == template_id).first()
-
         if not page or not template:
             raise ValueError("Page or Template not found")
-
-        # Assemble context from page data
-        context = {
-            "url": page.url,
-            "title": page.page_elements.title,
-            "h1": page.page_elements.h1,
-            "description": page.page_elements.description,
-            # TODO: Add markdown content and other fields
-        }
-
-        # Replace variables in the user prompt
+        context = { "url": page.url, "title": page.page_elements.title, "h1": page.page_elements.h1, "description": page.page_elements.description, }
         prompt_text = template.user_prompt.format(**context)
-
         messages = [{"role": "user", "content": prompt_text}]
         if template.system_prompt:
             messages.insert(0, {"role": "system", "content": template.system_prompt})
-
-        # Call the LLM using litellm
         response = litellm.completion(model=template.model, messages=messages)
-
         output_content = response.choices[0].message.content
-        output_data = {"generated_text": output_content} # TODO: Handle JSON output schema
-
-        # Save the result
-        crud.create_row_generation(
-            db=db,
-            run_id=run_id,
-            page_id=page_id,
-            input_context=context,
-            output=output_data,
-            tokens_in=response.usage.prompt_tokens,
-            tokens_out=response.usage.completion_tokens,
-        )
+        output_data = {"generated_text": output_content}
+        crud.create_row_generation( db=db, run_id=run_id, page_id=page_id, input_context=context, output=output_data, tokens_in=response.usage.prompt_tokens, tokens_out=response.usage.completion_tokens, )
         print(f"Successfully executed prompt for page {page_id}")
-
     except Exception as e:
         print(f"Error executing prompt for page {page_id}: {e}")
-        # TODO: Update PromptRun status to 'failed'
     finally:
         db.close()
 

@@ -81,3 +81,33 @@ def test_search_site_pages(mock_search_crud, client: TestClient, db_session, tes
         assert call_kwargs.get("limit") == 5
         assert isinstance(call_kwargs.get("vector"), list)
         assert len(call_kwargs.get("vector")) == 384
+
+def test_wp_integration_api(client: TestClient, db_session, test_user):
+    # --- Arrange ---
+    # Auth override
+    def get_test_user_override():
+        return test_user
+    app.dependency_overrides[get_current_user] = get_test_user_override
+
+    # Create a site
+    site = models.Site(domain="test-wp-site.com", org_id=test_user.org_id)
+    db_session.add(site)
+    db_session.commit()
+
+    # --- Act & Assert: Create ---
+    integration_data = {
+        "base_url": "https://test-wp-site.com",
+        "api_key": "supersecretkey",
+    }
+    response = client.post(f"/api/sites/{site.id}/integrations/wp", json=integration_data)
+    assert response.status_code == 200
+    created_integration = response.json()
+    assert created_integration["base_url"] == "https://test-wp-site.com"
+    assert created_integration["site_id"] == site.id
+
+    # --- Act & Assert: Read ---
+    response = client.get(f"/api/sites/{site.id}/integrations/wp")
+    assert response.status_code == 200
+    read_integration = response.json()
+    assert read_integration["id"] == created_integration["id"]
+    assert read_integration["api_key"] == "supersecretkey"

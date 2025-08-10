@@ -62,3 +62,21 @@ def search_site_pages(
     pages = crud.search_pages_by_vector(db, site_id=site_id, vector=query_vector, limit=request.limit)
 
     return pages
+
+@router.post("/{site_id}/integrations/wp", response_model=schemas.WordpressIntegration)
+def create_wordpress_integration(
+    site_id: int,
+    integration: schemas.WordpressIntegrationCreate,
+    db: Session = Depends(get_db),
+):
+    # TODO: Check user permissions for the site.
+    # TODO: Check if an integration already exists.
+    return crud.create_wp_integration(db=db, site_id=site_id, integration=integration)
+
+@router.get("/{site_id}/integrations/wp", response_model=schemas.WordpressIntegration)
+def get_wordpress_integration(site_id: int, db: Session = Depends(get_db)):
+    # TODO: Check user permissions for the site.
+    db_integration = crud.get_wp_integration_by_site(db, site_id=site_id)
+    if db_integration is None:
+        raise HTTPException(status_code=404, detail="WordPress integration not found for this site.")
+    return db_integration

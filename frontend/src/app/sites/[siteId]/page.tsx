@@ -87,6 +87,26 @@ export default function SitePage({ params }: { params: { siteId: string } }) {
     setRowSelection({});
   };
 
+  const handleExport = async () => {
+    try {
+      const response = await api.get(`/export/site/${params.siteId}/csv`, {
+        responseType: 'blob', // Important
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const filename = `site_${params.siteId}_export.csv`;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export CSV", error);
+      alert("Failed to download CSV.");
+    }
+  };
+
   const columns = useMemo(() => [
     {
       id: 'select',
@@ -177,6 +197,12 @@ export default function SitePage({ params }: { params: { siteId: string } }) {
               disabled={Object.keys(rowSelection).length === 0}
             >
               Run Prompt ({Object.keys(rowSelection).length})
+            </button>
+            <button
+                onClick={handleExport}
+                className="p-2 bg-gray-600 text-white rounded"
+            >
+                Export CSV
             </button>
         </div>
         {/* ... Column Visibility ... */}

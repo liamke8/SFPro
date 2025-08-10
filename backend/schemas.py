@@ -142,6 +142,21 @@ class PromptRun(PromptRunBase):
 class RunPromptRequest(BaseModel):
     template_id: int
 
+# Schemas for WordPress Integration
+class WordpressIntegrationBase(BaseModel):
+    base_url: str
+    api_key: str
+
+class WordpressIntegrationCreate(WordpressIntegrationBase):
+    pass
+
+class WordpressIntegration(WordpressIntegrationBase):
+    id: int
+    site_id: int
+    seo_plugin_detected: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
 # Schemas for Search
 class SearchRequest(BaseModel):
     query: str
@@ -151,3 +166,8 @@ class SearchRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     site_id: int
+
+# Schemas for Publishing
+class PublishRequest(BaseModel):
+    # This could be extended to include which generated content to publish, etc.
+    pass
