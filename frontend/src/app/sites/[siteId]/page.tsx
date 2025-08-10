@@ -1,5 +1,6 @@
 "use client";
 
+import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   createColumnHelper,
@@ -11,7 +12,7 @@ import {
   type SortingState,
   type RowSelectionState,
 } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -28,10 +29,34 @@ type Template = {
   name: string;
 };
 
+function IndeterminateCheckbox({
+  indeterminate,
+  className = '',
+  ...rest
+}: { indeterminate?: boolean } & React.HTMLProps<HTMLInputElement>) {
+  const ref = useRef<HTMLInputElement>(null!)
+
+  useEffect(() => {
+    if (typeof indeterminate === 'boolean') {
+      ref.current.indeterminate = !rest.checked && indeterminate
+    }
+  }, [ref, indeterminate, rest.checked])
+
+  return (
+    <input
+      type="checkbox"
+      ref={ref}
+      className={className + ' cursor-pointer'}
+      {...rest}
+    />
+  )
+}
+
 // Define columns
 const columnHelper = createColumnHelper<Page>();
 
-export default function SitePage({ params }: { params: { siteId: string } }) {
+export default function SitePage() {
+  const params = useParams<{ siteId: string }>();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -111,8 +136,7 @@ export default function SitePage({ params }: { params: { siteId: string } }) {
     {
       id: 'select',
       header: ({ table }) => (
-        <input
-          type="checkbox"
+        <IndeterminateCheckbox
           {...{
             checked: table.getIsAllRowsSelected(),
             indeterminate: table.getIsSomeRowsSelected(),
@@ -121,8 +145,7 @@ export default function SitePage({ params }: { params: { siteId: string } }) {
         />
       ),
       cell: ({ row }) => (
-        <input
-          type="checkbox"
+        <IndeterminateCheckbox
           {...{
             checked: row.getIsSelected(),
             disabled: !row.getCanSelect(),
@@ -136,7 +159,7 @@ export default function SitePage({ params }: { params: { siteId: string } }) {
     columnHelper.accessor((row) => row.page_elements?.title, { id: "title", header: "Title", cell: (info) => info.getValue() || "-" }),
     columnHelper.accessor((row) => row.page_elements?.h1, { id: "h1", header: "H1", cell: (info) => info.getValue() || "-" }),
     columnHelper.accessor("status_code", { header: "Status", cell: (info) => info.getValue() }),
-  ], []);
+  ], [params.siteId]);
 
   const table = useReactTable({
     data: data?.items ?? [],
