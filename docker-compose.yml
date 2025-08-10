@@ -22,10 +22,9 @@ services:
   backend:
     build: ./backend
     container_name: seo-platform-backend
-    # Corrected command: Removed the 'backend.' prefix
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
-      - ./backend:/app
+      - ./backend:/usr/src/app/backend
     ports:
       - "8000:8000"
     env_file:
@@ -37,10 +36,9 @@ services:
   celery:
     build: ./backend
     container_name: seo-platform-celery
-    # Corrected command: Removed the 'backend.celery_app.' prefix
-    command: celery -A celery_app worker --loglevel=info
+    command: celery -A backend.celery_app worker --loglevel=info
     volumes:
-      - ./backend:/app
+      - ./backend:/usr/src/app/backend
     env_file:
       - ./backend/.env
     depends_on:

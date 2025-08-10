@@ -5,8 +5,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*",
-        // Use the NEXT_PUBLIC_ prefixed environment variable
-        destination: `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'}/api/:path*`,
+        destination: `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/:path*`,
       },
     ];
   },
