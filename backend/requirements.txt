@@ -14,5 +14,7 @@ ollama
 litellm
 pydantic
 pydantic-settings
+supabase
+python-dotenv
 python-multipart
 httpx
